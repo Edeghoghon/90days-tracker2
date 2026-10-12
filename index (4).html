@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#5aa9e6">
+<style>:root{color-scheme:light}body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>90 Days Tracker</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: single column ops-log. Status banner, progress card with 90-cell day strip, then phases as accordions of day rows. */
+:root{
+  --bg:#eaf6fe;--surface:#fff;--ink:#16233b;--muted:#566985;--line:#cde2f2;--edge:#16233b;
+  --accent:#5aa9e6;--accent-ink:#0f2038;--sky:#7fc8f8;--sun:#ffe45e;--pink:#ff6392;
+  --link:#1d6fb8;--good:#2d93dd;--warn:#946f00;--bad:#ff6392;--bad-ink:#d1245f;--tint:#f2f9fe;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0d1a30;--surface:#14284a;--ink:#f2f7fc;--muted:#9db4d3;--line:#27426b;--edge:#3a5f96;
+  --accent:#5aa9e6;--accent-ink:#071526;--link:#7fc8f8;--good:#5aa9e6;--warn:#ffe45e;--bad-ink:#ff8aad;--tint:#1b3358;color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1a30;--surface:#14284a;--ink:#f2f7fc;--muted:#9db4d3;--line:#27426b;--edge:#3a5f96;
+  --accent:#5aa9e6;--accent-ink:#071526;--link:#7fc8f8;--good:#5aa9e6;--warn:#ffe45e;--bad-ink:#ff8aad;--tint:#1b3358;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);padding-inline:16px;padding-block:20px 80px}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1{font:800 clamp(26px,6vw,36px)/1.05 var(--display);margin:0;letter-spacing:-.02em;text-wrap:balance}
+.sub{color:var(--muted);margin:4px 0 0}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.top{display:flex;gap:12px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
+.btn{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 12px;font-size:13px;font-weight:500}
+.btn:hover{border-color:var(--link)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--link)}
+.banner{border-radius:10px;padding:14px 16px;border:1px solid;display:flex;gap:12px;align-items:flex-start}
+.banner b{display:block;font:700 16px/1.25 var(--display)}
+.banner span{font-size:14px}
+.banner .dot{flex:none;width:10px;height:10px;border-radius:50%;margin-top:6px;background:currentColor}
+.b-good{color:var(--good);background:color-mix(in srgb,var(--good) 10%,var(--surface));border-color:color-mix(in srgb,var(--good) 40%,var(--line))}
+.b-warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 11%,var(--surface));border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}
+.b-bad{color:var(--bad);background:color-mix(in srgb,var(--bad) 11%,var(--surface));border-color:color-mix(in srgb,var(--bad) 45%,var(--line))}
+.banner>div{color:var(--ink);min-width:0}
+.pct{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.pct big{font:800 56px/1 var(--display);letter-spacing:-.03em}
+.pct small{color:var(--muted)}
+.bar{height:12px;background:var(--tint);border:1px solid var(--line);border-radius:99px;overflow:hidden;margin-block:12px}
+.bar i{display:block;height:100%;width:0;background:var(--accent);border-radius:99px;transition:width .5s ease}
+.bar.sm{height:6px;margin:0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
+.stat{background:var(--tint);border-radius:8px;padding:10px 12px}
+.stat b{display:block;font:600 20px/1.2 var(--mono)}
+.stat span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.strip{display:flex;flex-wrap:wrap;gap:4px;margin-top:14px}
+.strip button{width:16px;height:16px;border-radius:3px;border:1px solid var(--line);background:var(--tint);padding:0}
+.strip .done{background:var(--good);border-color:var(--good)}
+.strip .over{background:color-mix(in srgb,var(--bad) 30%,var(--surface));border-color:var(--bad)}
+.strip .today{outline:2px solid var(--accent);outline-offset:1px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;border:1px solid var(--line)}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:7px 12px;font-size:13px;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+details.phase{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+details.phase>summary{list-style:none;cursor:pointer;padding:14px 16px;display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center}
+details.phase>summary::-webkit-details-marker{display:none}
+.ph-title{font:700 17px/1.2 var(--display);min-width:0}
+.ph-title small{display:block;font:400 12px var(--mono);color:var(--muted);margin-top:3px}
+.ph-count{font:600 13px var(--mono);color:var(--muted)}
+.ph-bar{grid-column:1/-1}
+.days{border-top:1px solid var(--line);display:flex;flex-direction:column}
+.day{border-bottom:1px solid var(--line)}
+.day:last-child{border-bottom:0}
+.row{display:flex;align-items:center;gap:12px;padding:10px 16px}
+.chk{flex:none;width:26px;height:26px;border-radius:7px;border:2px solid var(--muted);background:var(--surface);display:grid;place-items:center;padding:0;color:transparent}
+.chk svg{width:16px;height:16px}
+.day.is-done .chk{background:var(--good);border-color:var(--good);color:#fff}
+.day.is-over .chk{border-color:var(--bad)}
+.day.is-today{background:color-mix(in srgb,var(--accent) 7%,var(--surface))}
+.dlabel{flex:1;min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:none;border:0;text-align:left;padding:4px 0}
+.dlabel .n{font:600 14px var(--mono)}
+.dlabel .t{color:var(--muted);font-size:14px}
+.day.is-done .t{text-decoration:line-through}
+.tag{font:600 11px var(--mono);letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:99px;border:1px solid}
+.tag.today{color:var(--link);border-color:var(--link)}
+.tag.over{color:var(--bad);border-color:var(--bad)}
+.tag.opt{color:var(--muted);border-color:var(--line)}
+.caret{flex:none;color:var(--muted);transition:transform .15s;font-size:12px}
+.day.open .caret{transform:rotate(90deg)}
+.detail{padding:0 16px 14px 54px;display:none}
+.day.open .detail{display:block}
+.detail h4{margin:0 0 6px;font:600 12px var(--mono);text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.detail ul{margin:0 0 10px;padding-left:18px;display:flex;flex-direction:column;gap:5px}
+.detail a{color:var(--link);text-underline-offset:2px;overflow-wrap:anywhere}
+.detail textarea{width:100%;min-height:64px;background:var(--tint);border:1px solid var(--line);border-radius:8px;padding:8px 10px;resize:vertical}
+.done-on{font:12px var(--mono);color:var(--good);margin:0 0 8px}
+.toasts{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;z-index:9}
+.toast{pointer-events:auto;max-width:460px;width:100%;background:var(--ink);color:var(--bg);border-radius:10px;padding:12px 14px;font-size:14px;box-shadow:0 6px 24px #0004;animation:in .25s ease}
+.toast b{font-family:var(--display)}
+.toast.good{border-left:5px solid var(--good)}.toast.warn{border-left:5px solid var(--warn)}.toast.bad{border-left:5px solid var(--bad)}
+@keyframes in{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+.settings{display:none;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.settings.show{display:flex}
+.settings label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.settings input{background:var(--tint);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+.danger{color:var(--bad)}
+.foot{font-size:12px;color:var(--muted);text-align:center}
+.foot a{color:var(--link)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media (max-width:480px){.detail{padding-left:16px}.pct big{font-size:46px}}
+
+.card,details.phase{border:2px solid var(--edge);box-shadow:4px 4px 0 var(--edge);border-radius:16px}
+.btn{border:2px solid var(--edge);border-radius:12px;font-weight:600;box-shadow:2px 2px 0 var(--edge)}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.bar{border:2px solid var(--edge);height:16px}
+.bar.sm{height:9px;border-width:1.5px}
+.bar i{background:linear-gradient(90deg,var(--sky),var(--accent) 55%,var(--pink))}
+.seg{border:2px solid var(--edge);border-radius:12px}
+.seg button[aria-pressed="true"]{background:var(--sun);color:#16233b}
+.banner{border-width:2px;border-radius:14px}
+.b-good{color:var(--good);background:color-mix(in srgb,var(--sky) 30%,var(--surface));border-color:var(--edge)}
+.b-warn{color:var(--warn);background:color-mix(in srgb,var(--sun) 45%,var(--surface));border-color:var(--edge)}
+.b-bad{color:var(--bad-ink);background:color-mix(in srgb,var(--pink) 16%,var(--surface));border-color:var(--pink)}
+.strip .done{background:var(--good);border-color:var(--good)}
+.strip .over{background:var(--pink);border-color:var(--pink)}
+.strip .today{background:var(--sun);outline:2px solid var(--edge)}
+.chk{border-radius:9px;border-color:var(--edge)}
+.day.is-done .chk{background:var(--good);border-color:var(--good);color:#fff}
+.day.is-over .chk{border-color:var(--pink)}
+.day.is-today{background:color-mix(in srgb,var(--sun) 24%,var(--surface))}
+.tag.today{background:var(--sun);color:#16233b;border-color:#16233b}
+.tag.over{color:var(--bad-ink);border-color:var(--pink)}
+.stat:nth-child(1){background:color-mix(in srgb,var(--sun) 45%,var(--surface))}
+.stat:nth-child(2){background:color-mix(in srgb,var(--sky) 40%,var(--surface))}
+.stat:nth-child(3){background:color-mix(in srgb,var(--pink) 22%,var(--surface))}
+.hi{display:inline-block;background:var(--sun);color:#16233b;border:2px solid var(--edge);border-radius:99px;padding:3px 14px;font:700 14px var(--display);margin:0 0 10px;box-shadow:2px 2px 0 var(--edge)}
+.authrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.authform{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.authform input{flex:1 1 170px;min-width:0;background:var(--tint);border:2px solid var(--edge);border-radius:10px;padding:8px 10px}
+.am{margin:8px 0 0;font-size:13px}
+.card h3{margin:0;font:700 16px var(--display)}
+.stat{border:2px solid var(--edge);box-shadow:3px 3px 0 var(--edge);color:#16233b}
+.stat b{color:#16233b;font-size:22px}
+.stat span{color:#16233b;opacity:.85;font-weight:600}
+.stat:nth-child(1){background:var(--sun)}
+.stat:nth-child(2){background:var(--sky)}
+.stat:nth-child(3){background:var(--pink)}
+.stat:nth-child(4){background:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 6px}
+.vchip{min-width:40px;height:34px;border-radius:9px;border:2px solid var(--edge);background:var(--surface);font:600 13px var(--mono);padding:0 8px}
+.vchip.on{background:var(--good);border-color:var(--good);color:var(--accent-ink)}
+.plink{margin:0 0 12px;font-size:13px}
+.tasks{list-style:none;padding:0!important;display:flex;flex-direction:column;gap:7px}
+.tk{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.tk input{width:18px;height:18px;margin-top:2px;accent-color:var(--good);flex:none}
+.cnt{font:600 12px var(--mono);color:var(--muted);margin-left:auto}
+body.partner #authCard,body.partner #settings,body.partner .controls,body.partner #phases,body.partner .sub{display:none!important}
+.fc{margin:12px 0 0;font-size:14px;color:var(--muted)}
+body.partner #today{display:none!important}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <p class="hi" id="hi"></p>
+      <h1>90 Days of Cybersecurity</h1>
+      <p class="sub">Your daily log for the <a href="https://github.com/farhanashrafdev/90DaysOfCyberSecurity" target="_blank" rel="noopener" style="color:var(--link)">study plan</a>. Tick off videos and tasks as you finish them.</p>
+    </div>
+    <div class="controls">
+      <button class="btn" id="todayBtn">Jump to today</button>
+      <button class="btn" id="shareBtn">Share progress</button>
+      <button class="btn" id="setBtn" aria-expanded="false">Settings</button>
+    </div>
+  </div>
+
+  <div class="card settings" id="settings">
+    <label>Your name<input type="text" id="nameIn" maxlength="24"></label>
+    <label>Start date<input type="date" id="startIn"></label>
+    <button class="btn primary" id="saveStart">Save</button>
+    <label>Reminder time<input type="time" id="remIn" value="19:00"></label>
+    <button class="btn" id="icsBtn">Download reminders</button>
+    <button class="btn" id="expBtn">Export backup</button>
+    <button class="btn" id="impBtn">Import backup</button>
+    <input type="file" id="impFile" accept="application/json,.json" hidden>
+    <button class="btn danger" id="resetBtn">Reset all progress</button>
+    <span id="resetNote" style="font-size:13px;color:var(--bad)"></span>
+  </div>
+
+  <div class="card" id="authCard" hidden></div>
+
+  <div id="banner"></div>
+
+  <div class="card" id="today" hidden></div>
+
+  <div class="card">
+    <div class="pct"><big id="pct">0%</big><small id="pctSub">0 of 90 days done</small></div>
+    <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="bar"><i id="barFill"></i></div>
+    <div class="stats" id="stats"></div>
+    <p class="fc" id="forecast"></p>
+    <div class="strip" id="strip" aria-label="All 90 days at a glance"></div>
+    <div class="legend"><span><i style="background:var(--good)"></i>Done</span><span><i style="background:var(--pink);border-color:var(--pink)"></i>Missed</span><span><i style="background:var(--sun);border-color:var(--edge)"></i>Today</span><span><i style="background:var(--tint)"></i>Ahead</span></div>
+  </div>
+
+  <div class="controls">
+    <div class="seg" id="filter">
+      <button data-f="all" aria-pressed="true">All</button>
+      <button data-f="todo" aria-pressed="false">To do</button>
+      <button data-f="over" aria-pressed="false">Missed</button>
+      <button data-f="done" aria-pressed="false">Done</button>
+    </div>
+  </div>
+
+  <div id="phases" style="display:flex;flex-direction:column;gap:12px"></div>
+  <p class="foot" id="saveNote">Progress saves automatically.</p>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+(function(){
+var PLN="PLG49S3nxzAnl_tQe3kvnmeMid0mjF8Le8",PLS="PLG49S3nxzAnl4QDVqK-hOnoqcSKEIDDuv";
+var PHASES=[
+{name:"Network+",from:1,to:7},{name:"Security+",from:8,to:14},{name:"Linux",from:15,to:28},{name:"Python",from:29,to:42},
+{name:"Traffic Analysis",from:43,to:56},{name:"Git",from:57,to:63},{name:"ELK",from:64,to:70},{name:"Cloud (GCP, AWS or Azure)",from:71,to:77},
+{name:"Review and Practice",from:78,to:84},{name:"Hacking",from:85,to:90},{name:"Bonus: One-Page Resume",from:91,to:92,bonus:1},{name:"Bonus: Apply for Jobs",from:93,to:95,bonus:1}];
+var DAYS={};
+function T(d,title,items,ref){DAYS[d]={title:title,items:items,ref:ref||null}}
+function V(d,pl,r,name,items){DAYS[d]={title:name+": videos "+r[0]+" to "+r[1],v:{a:r[0],b:r[1],pl:pl},items:items,ref:null}}
+[[1,12],[13,24],[25,36],[37,48],[49,61],[62,74],[75,87]].forEach(function(r,i){V(1+i,PLN,r,"Network+",[["Practice questions on today's videos"]])});
+[[1,18],[19,36],[37,54],[55,72],[73,90],[91,108],[109,121]].forEach(function(r,i){V(8+i,PLS,r,"Security+",i===6?[["Practice questions on this week's videos"],["Catch up on any videos you missed this week"]]:[["Practice questions on today's videos"]])});
+var LJ="https://linuxjourney.com/",LU="https://www.netacad.com/courses/linux-unhatched",LX="https://labex.io/free-labs/linux";
+["Grasshopper","Novice","Intermediate, part 1","Intermediate, part 2","Guru and Sage"].forEach(function(a,i){T(15+i,"Linux Journey: "+a,[["Complete today's Linux Journey lessons",LJ],["Type the commands in a real terminal"]])});
+[1,2,3,4].forEach(function(n,i){T(20+i,"Linux Unhatched: part "+n+" of 4",[["Complete part "+n+" of the course",LU],["Write down three commands you learned"]])});
+[1,2,3,4,5].forEach(function(n,i){T(24+i,"LabEx Linux labs: batch "+n+" of 5",[["Complete today's batch of free Linux labs",LX]])});
+var FCC="https://www.youtube.com/watch?v=rfscVS0vtbw",CC="https://codecademy.com/learn/learn-python",HR="https://www.hackerrank.com/domains/python",LXP="https://labex.io/free-labs/python";
+T(29,"freeCodeCamp Python course: first half",[["Watch the first half (about 2 hours) and code along",FCC],["Write down anything unclear"]]);
+T(30,"freeCodeCamp Python course: second half",[["Watch the second half and code along",FCC],["Write down anything unclear"]]);
+[1,2,3,4,5,6].forEach(function(n,i){T(31+i,"Codecademy Python: part "+n+" of 6",[["Complete part "+n+" of the Learn Python track",CC]])});
+[1,2,3].forEach(function(n,i){T(37+i,"HackerRank Python: set "+n+" of 3",[["Solve a set of easy Python problems",HR]])});
+[1,2].forEach(function(n,i){T(40+i,"LabEx Python labs: batch "+n+" of 2",[["Complete today's batch of free Python labs",LXP]])});
+T(42,"Python wrap-up",[["Watch The Cyber Mentor Python course (YouTube)","https://www.youtube.com/watch?v=egg-GoT5iVk"],["Skim Real Python or Python.org for anything to revisit","https://realpython.com/"]]);
+var WU="https://www.wireshark.org/#educationalContent",WYT="https://www.youtube.com/watch?v=NjvR4LmwcMU&list=PLBf0hzazHTGPgyxeEj_9LBHiqjtNEjsgt";
+[1,2,3,4].forEach(function(n,i){T(43+i,"Wireshark University: part "+n+" of 4",[["Complete part "+n+" of the course",WU]])});
+[1,2,3].forEach(function(n,i){T(47+i,"Wireshark beginner series: part "+n+" of 3",[["Watch part "+n+" of the series and follow along in Wireshark",WYT]])});
+T(50,"Wireshark tutorial on guru99",[["Work through the guru99 Wireshark tutorial","https://guru99.com/wireshark-tutorial.html"]]);
+[1,2].forEach(function(n,i){T(51+i,"tcpdump tutorial: part "+n+" of 2",[["Read part "+n+" and run each command","https://danielmiessler.com/study/tcpdump/"]])});
+[1,2].forEach(function(n,i){T(53+i,"Suricata quickstart: part "+n+" of 2",[["Work through part "+n+" of the quickstart guide","https://docs.suricata.io/en/latest/quickstart.html"]])});
+T(55,"Suricata IDS/IPS video",[["Watch the Suricata Network IDS/IPS video","https://www.youtube.com/watch?v=S0-vsjhPDN0"]]);
+T(56,"Practice: read your own traffic",[["Capture your own traffic in Wireshark and filter by protocol"],["Capture with tcpdump and open the file in Wireshark"]]);
+var CCG="https://codecademy.com/learn/learn-git",GI="http://gitimmersion.com";
+T(57,"Codecademy Git: part 1 of 2",[["Complete part 1 of Git for Beginners",CCG]]);
+T(58,"Codecademy Git: part 2 of 2",[["Complete part 2 of Git for Beginners",CCG]]);
+T(59,"Git Immersion: part 1 of 2",[["Work through the first half of the tutorial",GI]]);
+T(60,"Git Immersion: part 2 of 2",[["Work through the second half of the tutorial",GI]]);
+T(61,"Try Git",[["Complete the Try Git tutorial","https://try.github.io"]]);
+T(62,"Learn Git Branching",[["Complete the interactive Git branching levels","https://learngitbranching.js.org/"]]);
+T(63,"Practice: your own repo",[["Create a repo, commit, branch and merge a change"],["Push it to GitHub"]]);
+var LZ="https://logz.io/learn/complete-guide-elk-stack/",EL="https://www.elastic.co/docs/get-started";
+T(64,"ELK guide: first half",[["Read the first half of the Logz.io ELK guide",LZ]]);
+T(65,"ELK guide: second half",[["Read the second half of the Logz.io ELK guide",LZ]]);
+T(66,"Elastic Stack: get started",[["Work through the official Elastic get-started docs",EL]]);
+T(67,"Practice: install Elasticsearch and Kibana",[["Install Elasticsearch and Kibana locally",EL]]);
+T(68,"Practice: ship sample logs",[["Load sample log data into Elasticsearch"]]);
+T(69,"Practice: build a Kibana dashboard",[["Build a dashboard from your sample logs"]]);
+T(70,"ELK review",[["Write a one-page summary of how ELK fits together"]]);
+var CL1=[["GCP: Getting started","https://cloud.google.com/getting-started/"],["AWS: Getting started","https://aws.amazon.com/getting-started/"],["Azure: Fundamentals training","https://learn.microsoft.com/en-us/training/azure/"]];
+var CL2=[["GCP documentation","https://cloud.google.com/docs/"],["AWS tutorials","https://aws.amazon.com/tutorials/"],["Azure Fundamentals path","https://learn.microsoft.com/en-us/training/paths/azure-fundamentals/"]];
+var CL3=[["Google Cloud Skills Boost","https://www.cloudskillsboost.google"],["AWS Cloud Quest","https://aws.amazon.com/training/digital/aws-cloud-quest/"],["Microsoft Learn Azure labs","https://learn.microsoft.com/en-us/training/paths/azure-fundamentals/"]];
+T(71,"Pick one cloud and set it up",[["Choose GCP, AWS or Azure"],["Create your free-tier account"]],CL1);
+T(72,"Cloud fundamentals",[["Work through your platform's getting-started material"],["Write down what IAM, storage and compute mean there"]],CL1);
+T(73,"Cloud tutorials: part 1",[["Complete tutorials on your chosen platform"]],CL2);
+T(74,"Cloud tutorials: part 2",[["Complete more tutorials on your chosen platform"]],CL2);
+T(75,"Cloud hands-on labs: part 1",[["Complete hands-on labs on your chosen platform"]],CL3);
+T(76,"Cloud hands-on labs: part 2",[["Complete more hands-on labs on your chosen platform"]],CL3);
+T(77,"Cloud review and clean-up",[["Review IAM and logging on your platform"],["Delete resources you created so you are not billed"]]);
+T(78,"Review: Network+, Security+ and Linux",[["Revisit your weak areas from Days 1 to 28"],["Redo practice questions you got wrong"]]);
+T(79,"Review: Python through cloud",[["Revisit Python, traffic analysis, Git, ELK and cloud"],["Write down your three weakest topics"]]);
+T(80,"TryHackMe: first rooms",[["Complete beginner rooms on TryHackMe","https://tryhackme.com"]]);
+T(81,"TryHackMe: more rooms",[["Complete more rooms on TryHackMe","https://tryhackme.com"]]);
+T(82,"Home lab",[["Install VirtualBox or VMware"],["Set up a Linux VM and a vulnerable VM"]]);
+T(83,"Small project: part 1",[["Plan a project that combines networking, Linux, Python and security"],["Build the first working piece"]]);
+T(84,"Small project: part 2",[["Finish and test the project"],["Write a short README for it"]]);
+T(85,"Ethical Hacking Part 1",[["Watch The Cyber Mentor Ethical Hacking Part 1","https://www.youtube.com/watch?v=3FNYvj2U0HM"]]);
+T(86,"Ethical Hacking Part 2",[["Watch The Cyber Mentor Ethical Hacking Part 2","https://www.youtube.com/watch?v=sH4JCwjybGs"]]);
+T(87,"Hack the Box: first challenges",[["Attempt beginner challenges on Hack the Box","https://hackthebox.com"]]);
+T(88,"Hack the Box: more challenges",[["Attempt more challenges on Hack the Box","https://hackthebox.com"]]);
+T(89,"VulnHub: first machine",[["Attack a vulnerable machine from VulnHub","https://vulnhub.com"]]);
+T(90,"VulnHub: second machine and write-up",[["Attack another VulnHub machine","https://vulnhub.com"],["Write up what you did"]]);
+T(91,"Resume: first draft",[["Pick a template and draft your one-page resume"]],[["BowTiedCyber template","https://bowtiedcyber.substack.com/p/killer-cyber-resume-part-ii"],["Indeed cybersecurity resume guide","https://www.indeed.com/career-advice/resumes-cover-letters/cybersecurity-resume"],["Resume-Now template","https://www.resume-now.com/templates/cyber-security-resume"]]);
+T(92,"Resume: finish",[["Finish and proofread the resume"],["Save a Markdown copy as cv.md"],["List your labs, CTF rooms and projects"]]);
+T(93,"career-ops: set up",[["Install Node.js and run career-ops init"],["Check the release notes before running npx"]],[["career-ops on GitHub","https://github.com/career-ops-hq/career-ops"]]);
+T(94,"Evaluate 10 to 20 job postings",[["Find postings on Indeed and LinkedIn"],["Score them and keep only those rated 4.0 or higher"]],[["Indeed","https://indeed.com"],["LinkedIn","https://linkedin.com"],["CyberSeek pathways","https://www.cyberseek.org/pathway.html"]]);
+T(95,"Tailor CVs and apply",[["Generate tailored CVs for your shortlist"],["Apply and prepare your interview stories"]]);
+var CORE=90,TOTAL=95,KEY="cyber90.v1";
+var PRAISE=["Nice. One more brick in the wall.","Done is better than perfect. Keep going.","That is how people get hired in this field.","Consistency beats intensity. Good work.","Another day logged. Future you says thanks.","Small steps, real skills. Keep it up."];
+var MILES={10:"10% done. The habit is forming.",25:"A quarter of the way. You are past the hardest part.",50:"Halfway. Most people never get here.",75:"75% done. The finish line is in sight.",100:"All 90 days complete. You did the whole plan."};
+var S={start:iso(new Date()),done:{},notes:{},t:0,name:"Ede",sub:{}};
+var sb=null,sess=null,shareTok=null,open={},filter="all",dbDoc=null,saveT=null,loaded=false;
+var $=function(i){return document.getElementById(i)};
+
+function pad(n){return n<10?"0"+n:""+n}
+function iso(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function utc(s){var p=s.split("-");return Date.UTC(+p[0],+p[1]-1,+p[2])}
+function diff(a,b){return Math.round((utc(b)-utc(a))/864e5)}
+function addDays(s,n){var d=new Date(utc(s)+n*864e5);return d.getUTCFullYear()+"-"+pad(d.getUTCMonth()+1)+"-"+pad(d.getUTCDate())}
+function nice(s){var p=s.split("-");return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString(undefined,{month:"short",day:"numeric"})}
+function esc(t){return String(t).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function today(){return iso(new Date())}
+
+function expected(){var e=diff(S.start,today())+1;return Math.max(0,Math.min(CORE,e))}
+function dueDay(){return diff(S.start,today())+1}
+function doneCount(){var c=0;for(var d=1;d<=CORE;d++)if(S.done[d])c++;return c}
+function missed(){var e=dueDay(),m=[];for(var d=1;d<Math.min(e,CORE+1);d++)if(!S.done[d])m.push(d);return m}
+function streaks(){
+  var set={};Object.keys(S.done).forEach(function(k){set[S.done[k]]=1});
+  var t=today(),cur=0,x=set[t]?t:addDays(t,-1);
+  while(set[x]){cur++;x=addDays(x,-1)}
+  var days=Object.keys(set).sort(),best=0,run=0,prev=null;
+  days.forEach(function(d){run=(prev&&diff(prev,d)===1)?run+1:1;if(run>best)best=run;prev=d});
+  return{cur:cur,best:best};
+}
+function phaseOf(d){return PHASES.filter(function(p){return d>=p.from&&d<=p.to})[0]}
+
+/* persistence */
+function save(){if(PARTNER)return;
+  S.t=Date.now();
+  try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+  clearTimeout(saveT);
+  saveT=setTimeout(function(){
+    if(sess){push()}else if(dbDoc){dbDoc.set({json:JSON.stringify(S)}).then(function(){$("saveNote").textContent="Saved to your account."}).catch(function(){$("saveNote").textContent="Saved in this browser only."})}
+    else $("saveNote").textContent="Saved in this browser only.";
+  },400);
+}
+function adopt(o){if(o&&o.start&&o.done){S={start:o.start,done:o.done||{},notes:o.notes||{},t:o.t||0,name:o.name||S.name||"Ede",sub:o.sub||{}};norm()}}
+var PARTNER=/^#share=/.test(location.hash);if(PARTNER)document.body.classList.add("partner");
+if(!PARTNER){try{var raw=localStorage.getItem(KEY);if(raw)adopt(JSON.parse(raw))}catch(e){}}
+
+/* toasts */
+function toast(kind,title,msg){
+  var el=document.createElement("div");el.className="toast "+kind;
+  el.innerHTML="<b>"+esc(title)+"</b> "+esc(msg||"");
+  $("toasts").appendChild(el);
+  setTimeout(function(){el.remove()},kind==="bad"?7000:4500);
+}
+
+/* render */
+var CHECK='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3.2L13 4.8"/></svg>';
+function unitsOf(d){var x=DAYS[d];return(x.v?x.v.b-x.v.a+1:0)+x.items.length}
+function allUnits(d){var a=[],i;for(i=0;i<unitsOf(d);i++)a.push(i);return a}
+function subOf(d){return S.sub[d]||[]}
+function frac(d){if(S.done[d])return 1;var u=unitsOf(d);return u?Math.min(1,subOf(d).length/u):0}
+function progress(){var t=0,d;for(d=1;d<=CORE;d++)t+=frac(d);return t/CORE*100}
+function pctNow(){var p=progress();return p>=99.999?100:Math.floor(p)}
+function norm(){for(var k in S.done){if(DAYS[k]&&!(S.sub[k]&&S.sub[k].length))S.sub[k]=allUnits(+k)}}
+function shareUrl(){return location.origin+location.pathname+"#share="+shareTok}
+function statusOf(d){
+  if(S.done[d])return"done";
+  var due=dueDay();
+  if(d<due&&d<=CORE)return"over";
+  if(d===due)return"today";
+  return"future";
+}
+function taskTitle(p,d){return p.name+" · part "+(d-p.from+1)+" of "+(p.to-p.from+1)}
+
+function renderPartnerBanner(){
+  var m=missed(),due=dueDay(),ds=Object.keys(S.done).map(function(k){return S.done[k]}).sort(),last=ds.length?nice(ds[ds.length-1]):"never";
+  var cls=m.length===0?"b-good":m.length<=2?"b-warn":"b-bad";
+  var title=m.length===0?S.name+" is on track":S.name+" is "+m.length+" day"+(m.length===1?"":"s")+" behind";
+  var msg="Last check-in: "+last+(due>=1&&due<=CORE?". Today is day "+due+": "+DAYS[due].title+".":".");
+  $("banner").innerHTML='<div class="banner '+cls+'"><span class="dot"></span><div><b>'+esc(title)+'</b><span>'+esc(msg)+'</span></div></div>';
+}
+function renderBanner(){if(PARTNER){renderPartnerBanner();return}
+  var b=$("banner"),due=dueDay(),m=missed(),dc=doneCount(),cls,title,msg;
+  if(due<1){cls="b-good";title="Starts "+nice(S.start);msg="Your plan begins in "+(1-due)+" day"+(1-due===1?"":"s")+". Get your tools ready."}
+  else if(dc>=CORE){cls="b-good";title="Plan complete";msg="All 90 days done. Now go apply what you learned."}
+  else if(m.length===0){
+    cls="b-good";
+    if(due>CORE){title="Time is up";msg="The 90 days are over. Finish what is left."}
+    else{title=S.done[due]?"Day "+due+" done. On track.":"On track. Day "+due+" is today.";msg=dc>due?"You are "+(dc-due)+" day"+(dc-due===1?"":"s")+" ahead of schedule.":S.done[due]?"Rest up and come back tomorrow.":"Do today's task before the day ends."}
+  }else if(m.length<=2){cls="b-warn";title=m.length+" day"+(m.length===1?"":"s")+" behind";msg="Missed: "+m.map(function(x){return"Day "+x}).join(", ")+". Catch up today before it snowballs."}
+  else if(m.length<=6){cls="b-bad";title=m.length+" days behind. Time to act.";msg="Do one extra day today and one tomorrow. Oldest first: Day "+m[0]+"."}
+  else{cls="b-bad";title=m.length+" days behind.";msg="It is fine to restart your pace. Move your start date in Settings, or knock out Day "+m[0]+" right now."}
+  b.innerHTML='<div class="banner '+cls+'"><span class="dot"></span><div><b>'+esc(title)+'</b><span>'+esc(msg)+'</span></div></div>';
+}
+function renderStats(){
+  var dc=doneCount(),pc=pctNow(),st=streaks(),due=dueDay(),ud=0,ut=0,q;
+  for(q=1;q<=CORE;q++){ut+=unitsOf(q);ud+=S.done[q]?unitsOf(q):subOf(q).length}
+  $("pct").textContent=pc+"%";
+  $("pctSub").textContent=dc+" of "+CORE+" days done, "+ud+" of "+ut+" tasks";
+  $("barFill").style.width=progress().toFixed(1)+"%";
+  $("bar").setAttribute("aria-valuenow",pc);
+  var cur=Math.max(0,Math.min(CORE,due));
+  $("stats").innerHTML=
+    '<div class="stat"><b>'+(due<1?"-":Math.min(due,CORE))+'</b><span>Today is day</span></div>'+
+    '<div class="stat"><b>'+st.cur+'</b><span>Day streak</span></div>'+
+    '<div class="stat"><b>'+st.best+'</b><span>Best streak</span></div>'+
+    '<div class="stat"><b>'+Math.max(0,CORE-dc)+'</b><span>Days left</span></div>';
+  var strip="";
+  for(var d=1;d<=CORE;d++){var s=statusOf(d),f=frac(d),ps=(s!=="done"&&f>0)?' style="background:linear-gradient(to top,var(--good) '+Math.round(f*100)+'%,var(--tint) 0)"':"";strip+='<button data-d="'+d+'" class="'+(s==="done"?"done":s==="over"?"over":s==="today"?"today":"")+'"'+ps+' title="Day '+d+'" aria-label="Day '+d+'"></button>'}
+  $("strip").innerHTML=strip;
+}
+function renderPhases(){
+  var h="";
+  PHASES.forEach(function(p,pi){
+    var n=p.to-p.from+1,dn=0,fs=0,rows="";
+    for(var d=p.from;d<=p.to;d++){
+      var s=statusOf(d),x=DAYS[d],u=unitsOf(d),ck=subOf(d),c=S.done[d]?u:ck.length;
+      fs+=frac(d);if(S.done[d])dn++;
+      if(filter==="todo"&&s==="done")continue;
+      if(filter==="done"&&s!=="done")continue;
+      if(filter==="over"&&s!=="over")continue;
+      var tag=s==="today"?'<span class="tag today">Today</span>':s==="over"?'<span class="tag over">Missed</span>':"";
+      if(p.bonus)tag+='<span class="tag opt">Bonus</span>';
+      var off=x.v?x.v.b-x.v.a+1:0,body="",i;
+      if(x.v){
+        body+='<h4>Videos '+x.v.a+' to '+x.v.b+'</h4><div class="chips">';
+        for(i=0;i<off;i++){var on=S.done[d]||ck.indexOf(i)>=0;body+='<button class="vchip'+(on?" on":"")+'" data-u="'+d+':'+i+'" aria-pressed="'+!!on+'" aria-label="Video '+(x.v.a+i)+'">'+(x.v.a+i)+'</button>'}
+        body+='</div><p class="plink"><a href="https://www.youtube.com/watch?list='+x.v.pl+'&index='+x.v.a+'" target="_blank" rel="noopener">Open the playlist at video '+x.v.a+'</a></p>';
+      }
+      if(x.items.length){
+        body+='<h4>Tasks</h4><ul class="tasks">'+x.items.map(function(t,k){var j=off+k,on2=S.done[d]||ck.indexOf(j)>=0;return'<li><label class="tk"><input type="checkbox" data-u="'+d+':'+j+'"'+(on2?" checked":"")+'><span>'+(t[1]?'<a href="'+t[1]+'" target="_blank" rel="noopener">'+esc(t[0])+'</a>':esc(t[0]))+'</span></label></li>'}).join("")+'</ul>';
+      }
+      if(x.ref)body+='<h4>Links</h4><ul class="refs">'+x.ref.map(function(r){return'<li><a href="'+r[1]+'" target="_blank" rel="noopener">'+esc(r[0])+'</a></li>'}).join("")+'</ul>';
+      var isOpen=open[d];
+      rows+='<div class="day is-'+s+(isOpen?" open":"")+'" id="day'+d+'">'+
+        '<div class="row"><button class="chk" data-chk="'+d+'" aria-label="Mark day '+d+' done" aria-pressed="'+(!!S.done[d])+'">'+CHECK+'</button>'+
+        '<button class="dlabel" data-tog="'+d+'" aria-expanded="'+(!!isOpen)+'"><span class="n">Day '+d+'</span><span class="t">'+esc(x.title)+'</span>'+tag+'<span class="cnt">'+c+'/'+u+'</span></button>'+
+        '<span class="caret" aria-hidden="true">&#9654;</span></div>'+
+        '<div class="detail">'+(S.done[d]?'<p class="done-on">Completed '+nice(S.done[d])+'</p>':"")+body+'<h4>Notes</h4>'+
+        '<textarea id="note'+d+'" data-note="'+d+'" placeholder="What did you learn? Labs finished, links, questions...">'+esc(S.notes[d]||"")+'</textarea></div></div>';
+    }
+    if(!rows&&filter!=="all")return;
+    var due=dueDay(),isCur=due>=p.from&&due<=p.to;
+    h+='<details class="phase" data-ph="'+pi+'"'+((isCur||phOpen[pi]===true)&&phOpen[pi]!==false?" open":"")+'><summary><div class="ph-title">'+esc(p.name)+'<small>DAYS '+p.from+'-'+p.to+'</small></div><span class="ph-count">'+dn+'/'+n+'</span><div class="bar sm ph-bar"><i style="width:'+Math.round(fs/n*100)+'%"></i></div></summary><div class="days">'+rows+'</div></details>';
+  });
+  $("phases").innerHTML=h||'<div class="card">Nothing here. Try another filter.</div>';
+}
+var phOpen={};
+function renderHi(){if(PARTNER){$("hi").textContent=S.name+"'s progress";return}var back=doneCount()>0||Object.keys(S.notes).length>0;$("hi").textContent=(back?"Welcome back, ":"Welcome, ")+S.name+"!"}
+function unitsHtml(d){
+  var x=DAYS[d],off=x.v?x.v.b-x.v.a+1:0,ck=subOf(d),h="",i;
+  if(x.v){
+    h+='<div class="chips">';
+    for(i=0;i<off;i++){var on=S.done[d]||ck.indexOf(i)>=0;h+='<button class="vchip'+(on?" on":"")+'" data-u="'+d+':'+i+'" aria-pressed="'+!!on+'" aria-label="Video '+(x.v.a+i)+'">'+(x.v.a+i)+'</button>'}
+    h+='</div><p class="plink"><a href="https://www.youtube.com/watch?list='+x.v.pl+'&index='+x.v.a+'" target="_blank" rel="noopener">Open the playlist at video '+x.v.a+'</a></p>';
+  }
+  if(x.items.length)h+='<ul class="tasks">'+x.items.map(function(t,k){var j=off+k,on2=S.done[d]||ck.indexOf(j)>=0;return'<li><label class="tk"><input type="checkbox" data-u="'+d+':'+j+'"'+(on2?" checked":"")+'><span>'+(t[1]?'<a href="'+t[1]+'" target="_blank" rel="noopener">'+esc(t[0])+'</a>':esc(t[0]))+'</span></label></li>'}).join("")+'</ul>';
+  if(x.ref)h+='<ul class="refs">'+x.ref.map(function(r){return'<li><a href="'+r[1]+'" target="_blank" rel="noopener">'+esc(r[0])+'</a></li>'}).join("")+'</ul>';
+  return h;
+}
+function renderToday(){
+  var el=$("today"),t=0,d,due=dueDay();
+  for(d=1;d<=TOTAL;d++){if(!S.done[d]){t=d;break}}
+  if(PARTNER||!t){el.hidden=true;return}
+  var x=DAYS[t],u=unitsOf(t),c=subOf(t).length,label=t>CORE?"Bonus: Day "+t:t<due?"Catch up: Day "+t:t===due?"Today: Day "+t:"Next up: Day "+t;
+  el.hidden=false;
+  el.innerHTML='<div class="authrow"><h3>'+label+'</h3><span class="cnt" style="margin:0">'+c+'/'+u+'</span></div><p style="margin:4px 0 10px;font-weight:600">'+esc(x.title)+'</p><div class="bar sm"><i style="width:'+Math.round(c/u*100)+'%"></i></div><div style="margin-top:12px">'+unitsHtml(t)+'</div>';
+}
+function renderForecast(){
+  var el=$("forecast"),due=dueDay();
+  if(PARTNER||due<1){el.textContent="";return}
+  var de=progress()/100*CORE;
+  if(de>=CORE-0.001){el.textContent="You finished the 90 days.";return}
+  if(due<7){el.textContent="Your finish-date forecast appears after your first week.";return}
+  if(de<=0){el.textContent="Tick off your first tasks to get a finish-date forecast.";return}
+  var rate=de/due,left=CORE-de,fin=addDays(today(),Math.ceil(left/rate)),planEnd=addDays(S.start,CORE-1),late=diff(planEnd,fin),dleft=Math.max(1,diff(today(),planEnd)+1);
+  var t="At your pace you finish on "+nice(fin)+".";
+  if(late>0)t+=" That is "+late+" day"+(late===1?"":"s")+" after the plan ends ("+nice(planEnd)+"). Do about "+(left/dleft).toFixed(1)+" days of work a day to finish on time.";
+  else t+=" That is on or ahead of the plan end ("+nice(planEnd)+").";
+  el.textContent=t;
+}
+function render(){renderHi();renderBanner();renderToday();renderStats();renderPhases();renderForecast()}
+
+/* actions */
+function celebrate(d,before){
+  var after=pctNow(),hit=null;
+  [10,25,50,75,100].forEach(function(m){if(before<m&&after>=m&&d<=CORE)hit=m});
+  if(hit)toast("good","Milestone!",MILES[hit]);
+  else{var m=missed().length;toast("good","Day "+d+" done.",PRAISE[Math.floor(Math.random()*PRAISE.length)]+(m?" "+m+" still to catch up.":""))}
+}
+function toggle(d){
+  var before=pctNow();
+  if(S.done[d]){delete S.done[d];S.sub[d]=[];toast("warn","Day "+d+" unchecked.","Back on your to-do list.")}
+  else{S.done[d]=today();S.sub[d]=allUnits(d);celebrate(d,before)}
+  save();render();
+}
+function setUnit(d,i){
+  var before=pctNow(),a=(S.sub[d]||[]).slice(),k=a.indexOf(i),was=!!S.done[d];
+  if(k>=0)a.splice(k,1);else a.push(i);
+  S.sub[d]=a;
+  if(a.length>=unitsOf(d)){if(!was){S.done[d]=today();celebrate(d,before)}}
+  else if(was){delete S.done[d]}
+  save();render();
+}
+document.addEventListener("click",function(e){
+  var t=e.target.closest("[data-chk],[data-tog],[data-d],[data-f],[data-u]");if(!t)return;
+  if(t.dataset.u){var pr=t.dataset.u.split(":");setUnit(+pr[0],+pr[1])}
+  else if(t.dataset.chk){toggle(+t.dataset.chk)}
+  else if(t.dataset.tog){var d=+t.dataset.tog;open[d]=!open[d];var el=$("day"+d);el.classList.toggle("open",!!open[d]);t.setAttribute("aria-expanded",!!open[d])}
+  else if(t.dataset.d){goTo(+t.dataset.d)}
+  else if(t.dataset.f){filter=t.dataset.f;Array.prototype.forEach.call($("filter").children,function(b){b.setAttribute("aria-pressed",b===t)});renderPhases()}
+});
+document.addEventListener("input",function(e){
+  var d=e.target.dataset&&e.target.dataset.note;if(!d)return;
+  S.notes[d]=e.target.value;save();
+});
+document.addEventListener("toggle",function(e){var p=e.target.dataset&&e.target.dataset.ph;if(p!==undefined)phOpen[p]=e.target.open},true);
+function goTo(d){
+  var p=phaseOf(d),pi=PHASES.indexOf(p);phOpen[pi]=true;open[d]=true;filter="all";
+  Array.prototype.forEach.call($("filter").children,function(b){b.setAttribute("aria-pressed",b.dataset.f==="all")});
+  renderPhases();
+  var el=$("day"+d);if(el)el.scrollIntoView({behavior:"smooth",block:"center"});
+}
+$("shareBtn").onclick=function(){
+  var st=streaks(),m=missed(),due=Math.min(Math.max(dueDay(),0),CORE);
+  var dc=doneCount(),ahead=dc-due,sched=m.length?"Behind schedule by "+m.length+" day"+(m.length===1?"":"s"):ahead>0?"Ahead of schedule by "+ahead+" day"+(ahead===1?"":"s"):"On track";
+  var txt="90 Days of Cybersecurity ("+S.name+")\n"+dc+" of 90 days done, "+pctNow()+"% complete\nToday is day "+due+" of the plan\nStreak: "+st.cur+" (best "+st.best+")\n"+sched+(shareTok?"\nLive progress: "+shareUrl():"");
+  try{navigator.clipboard.writeText(txt)}catch(e){}
+  window.open("https://wa.me/?text="+encodeURIComponent(txt),"_blank");
+  toast("good","Report copied.","Opening WhatsApp too.");
+};
+$("todayBtn").onclick=function(){
+  var due=dueDay();
+  if(due<1){toast("warn","Not started yet.","Your plan begins "+nice(S.start)+".");goTo(1);return}
+  goTo(Math.min(due,TOTAL));
+};
+$("setBtn").onclick=function(){var s=$("settings");s.classList.toggle("show");this.setAttribute("aria-expanded",s.classList.contains("show"));$("startIn").value=S.start;$("nameIn").value=S.name};
+$("saveStart").onclick=function(){var v=$("startIn").value,n=$("nameIn").value.trim();if(n)S.name=n.slice(0,24);if(v)S.start=v;save();render();toast("good","Saved.","Day 1 is "+nice(S.start)+".")};
+$("icsBtn").onclick=function(){
+  var tm=($("remIn").value||"19:00").replace(":","")+"00",stamp=new Date().toISOString().replace(/[-:]/g,"").slice(0,15)+"Z";
+  var e2=function(t){return String(t).replace(/\\/g,"\\\\").replace(/;/g,"\;").replace(/,/g,"\\,").replace(/\n/g,"\\n")};
+  var L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//90days//EN","CALSCALE:GREGORIAN"],d;
+  for(d=1;d<=TOTAL;d++){
+    var x=DAYS[d],ds=addDays(S.start,d-1).replace(/-/g,""),desc=(x.v?"Videos "+x.v.a+" to "+x.v.b+". ":"")+x.items.map(function(t){return t[0]}).join(". ");
+    L.push("BEGIN:VEVENT","UID:day"+d+"-90days@tracker","DTSTAMP:"+stamp,"DTSTART:"+ds+"T"+tm,"DURATION:PT1H","SUMMARY:"+e2("Day "+d+": "+x.title),"DESCRIPTION:"+e2(desc),"BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:Study time","TRIGGER:-PT10M","END:VALARM","END:VEVENT");
+  }
+  L.push("END:VCALENDAR");
+  try{
+    var b=new Blob([L.join("\r\n")],{type:"text/calendar"}),a=document.createElement("a");
+    a.href=URL.createObjectURL(b);a.download="90days-reminders.ics";document.body.appendChild(a);a.click();a.remove();
+    toast("good","Reminders downloaded.","Open the file to add 95 daily events to your calendar.");
+  }catch(err){toast("bad","Download failed.","Try a different browser.")}
+};
+$("expBtn").onclick=function(){
+  try{
+    var b=new Blob([JSON.stringify(S,null,2)],{type:"application/json"}),a=document.createElement("a");
+    a.href=URL.createObjectURL(b);a.download="90days-backup-"+today()+".json";document.body.appendChild(a);a.click();a.remove();
+    toast("good","Backup exported.","Keep the file somewhere safe.");
+  }catch(e){toast("bad","Export failed.","Try a different browser.")}
+};
+$("impBtn").onclick=function(){$("impFile").click()};
+$("impFile").onchange=function(){
+  var f=this.files[0];if(!f)return;var r=new FileReader();
+  r.onload=function(){try{var o=JSON.parse(r.result);if(!o||!o.start||!o.done)throw 0;adopt(o);save();render();toast("good","Backup imported.","Your progress is restored.")}catch(e){toast("bad","Import failed.","That file is not a valid backup.")}};
+  r.readAsText(f);this.value="";
+};
+var resetArmed=false;
+$("resetBtn").onclick=function(){
+  if(!resetArmed){resetArmed=true;$("resetNote").textContent="Press Reset again to erase all progress and notes.";setTimeout(function(){resetArmed=false;$("resetNote").textContent=""},5000);return}
+  S={start:iso(new Date()),done:{},notes:{},t:0,name:S.name,sub:{}};resetArmed=false;$("resetNote").textContent="";save();render();toast("warn","Progress reset.","Fresh start from today.");
+};
+
+/* initial paint */
+render();
+
+/* reminders: when you open the page and fall behind */
+function nag(){if(PARTNER)return;
+  var m=missed().length,due=dueDay();
+  if(due<1||doneCount()>=CORE)return;
+  if(m>=3)toast("bad","You are "+m+" days behind.","Do Day "+missed()[0]+" first. Every day you wait makes it harder.");
+  else if(m>0)toast("warn","Heads up.",m+" day"+(m===1?"":"s")+" behind. Catch up today.");
+  else if(due<=CORE&&!S.done[due])toast("good","Day "+due+" is waiting.","Even 30 focused minutes counts.");
+}
+setTimeout(nag,900);
+document.addEventListener("visibilitychange",function(){if(!document.hidden){render();pull()}});
+
+
+/* Supabase sign-in and sync */
+var SB_URL="https://aopslvwkwylzddnhyynq.supabase.co",SB_KEY="sb_publishable_29Qc1Ux3zDrEYBGezti8NA_H6O8MJz5";
+function authMsg(t,bad){var e=$("authMsg");if(!e)return;e.textContent=t||"";e.style.color=bad?"var(--bad-ink)":"var(--muted)"}
+function renderAuth(){
+  var c=$("authCard");if(!sb){c.hidden=true;return}
+  c.hidden=false;
+  if(sess){
+    c.innerHTML='<div class="authrow"><span>Synced as <b>'+esc(sess.user.email)+'</b></span><button class="btn" id="outBtn">Sign out</button></div>'+
+      '<div class="authform">'+(shareTok?'<input id="shIn" readonly value="'+esc(shareUrl())+'" aria-label="Partner link"><button class="btn" id="cpBtn">Copy link</button><button class="btn danger" id="stopBtn">Stop sharing</button>':'<button class="btn primary" id="mkBtn">Create partner link</button><span class="am" style="margin:0;color:var(--muted)">Your partner sees progress only, not your notes.</span>')+'</div><p class="am" id="authMsg"></p>';
+    $("outBtn").onclick=function(){sb.auth.signOut()};
+    if(shareTok){
+      $("cpBtn").onclick=function(){var v=shareUrl();try{navigator.clipboard.writeText(v).then(function(){authMsg("Link copied.")},function(){$("shIn").select();authMsg("Press Ctrl+C to copy.")})}catch(e){$("shIn").select()}};
+      $("stopBtn").onclick=function(){sb.from("progress").update({share_token:null}).eq("user_id",sess.user.id).then(function(r){if(r.error)authMsg(r.error.message,1);else{shareTok=null;renderAuth()}})};
+    }else{
+      $("mkBtn").onclick=function(){
+        var a=new Uint8Array(16);crypto.getRandomValues(a);
+        var tok=Array.prototype.map.call(a,function(b){return("0"+b.toString(16)).slice(-2)}).join("");
+        authMsg("Creating link...");
+        push().then(function(){return sb.from("progress").update({share_token:tok}).eq("user_id",sess.user.id)}).then(function(r){
+          if(r.error)authMsg((r.error.message||"").indexOf("share_token")>=0?"Run the partner SQL in Supabase first.":r.error.message,1);
+          else{shareTok=tok;renderAuth()}
+        });
+      };
+    }
+  }else{
+    c.innerHTML='<h3>Sync across devices</h3><p class="am" style="margin-top:2px;color:var(--muted)">Sign in to keep your progress on every device. It still works without signing in.</p>'+
+      '<div class="authform"><input id="emIn" type="email" placeholder="Email" autocomplete="email"><input id="pwIn" type="password" placeholder="Password (6+ characters)" autocomplete="current-password"></div>'+
+      '<div class="authform"><button class="btn primary" id="inBtn">Sign in</button><button class="btn" id="upBtn">Create account</button></div><p class="am" id="authMsg"></p>';
+    var creds=function(){return{email:$("emIn").value.trim(),password:$("pwIn").value}};
+    $("inBtn").onclick=function(){authMsg("Signing in...");sb.auth.signInWithPassword(creds()).then(function(r){if(r.error)authMsg(r.error.message,1)})};
+    $("upBtn").onclick=function(){authMsg("Creating account...");sb.auth.signUp(creds()).then(function(r){if(r.error)authMsg(r.error.message,1);else if(!r.data.session)authMsg("Check your email to confirm, then sign in.")})};
+  }
+}
+function loadTok(){
+  sb.from("progress").select("share_token").eq("user_id",sess.user.id).maybeSingle().then(function(r){shareTok=(r&&r.data)?r.data.share_token:null;renderAuth()},function(){});
+}
+function loadShared(){
+  var tok=location.hash.slice(7);
+  $("saveNote").textContent="Loading shared progress...";
+  sb.rpc("get_shared_progress",{tok:tok}).then(function(r){
+    if(r.error||!r.data){$("saveNote").textContent="This link is not active. Ask for a new one.";return}
+    S=Object.assign({start:today(),done:{},notes:{},sub:{},t:0,name:"Your partner"},r.data);S.notes={};S.sub=S.sub||{};norm();render();
+    $("saveNote").textContent="Read-only view of "+S.name+"'s progress.";
+  });
+}
+function push(){
+  if(!sess)return Promise.resolve();
+  return sb.from("progress").upsert({user_id:sess.user.id,data:S,updated_at:new Date().toISOString()}).then(function(r){$("saveNote").textContent=r.error?"Saved here. Sync problem: "+r.error.message:"Synced to your account."});
+}
+function pull(){
+  if(!sess)return Promise.resolve();
+  return sb.from("progress").select("data").eq("user_id",sess.user.id).maybeSingle().then(function(r){
+    if(r.error){$("saveNote").textContent="Saved here. Sync problem: "+r.error.message;return}
+    var rd=r.data&&r.data.data;
+    if(rd&&rd.done&&(rd.t||0)>(S.t||0)){adopt(rd);try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){};render();$("saveNote").textContent="Synced to your account."}
+    else if(!rd||(rd.t||0)<(S.t||0)){return push()}
+    else $("saveNote").textContent="Synced to your account.";
+  });
+}
+if(window.supabase&&window.supabase.createClient){
+  try{
+    sb=window.supabase.createClient(SB_URL,SB_KEY);
+    if(PARTNER){loadShared()}else{renderAuth();
+    sb.auth.onAuthStateChange(function(ev,ns){setTimeout(function(){sess=ns;renderAuth();if(ns){pull();loadTok()}else{shareTok=null}},0)})}
+  }catch(e){sb=null}
+}
+
+if(PARTNER&&!sb)$("saveNote").textContent="Could not load the shared progress.";
+/* account sync inside claude.ai (optional) */
+if(window.claude&&claude.use){
+  Promise.all([claude.use("db"),claude.use("user")]).then(function(r){
+    var db=r[0],user=r[1];if(!db||!user)return;
+    return user.id().then(function(id){
+      if(!id)return;
+      dbDoc=db.collection("data/users/"+id).doc("progress");
+      return dbDoc.get().then(function(snap){
+        if(snap.exists){
+          try{var o=JSON.parse(snap.data().json);if(o&&(o.t||0)>=(S.t||0)){adopt(o);try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){};render()}else{save()}}catch(e){}
+        }else if(doneCount()||Object.keys(S.notes).length){save()}
+        $("saveNote").textContent="Progress saves to your account.";
+      });
+    });
+  }).catch(function(){});
+}
+})();
+</script>
+
+</body>
+</html>
